@@ -9,6 +9,7 @@ class WhatsAppService {
         this.client = new Client({
             authStrategy: new LocalAuth(),
             puppeteer: {
+                headless: true,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -23,11 +24,11 @@ class WhatsAppService {
         this.ready = false;
         this.qr = null;
         this.io = null;
-        this.initializeClient();
     }
 
     setSocketIO(io) {
         this.io = io;
+        console.log('Socket.IO has been set');
     }
 
     isReady() {
@@ -35,41 +36,42 @@ class WhatsAppService {
     }
 
     async initializeClient() {
+        console.log('Initializing WhatsApp client...');
+        
         this.client.on('qr', async (qr) => {
-            // Generate QR for terminal
+            console.log('QR Code received');
             qrcodeTerminal.generate(qr, { small: true });
-            console.log('QR Code telah digenerate! Silakan scan menggunakan WhatsApp anda.');
-
-            // Generate QR for web if socket is available
+            
             try {
-                this.qr = await qrcode.toDataURL(qr);
+                const qrDataURL = await qrcode.toDataURL(qr);
                 if (this.io) {
-                    this.io.emit('qr', this.qr);
+                    console.log('Emitting QR code to frontend');
+                    this.io.emit('qr', qrDataURL);
+                } else {
+                    console.log('Socket.IO not initialized yet');
                 }
             } catch (err) {
-                console.error('Error generating QR code for web:', err);
+                console.error('Error generating QR code:', err);
             }
         });
 
         this.client.on('ready', () => {
+            console.log('WhatsApp client is ready!');
             this.ready = true;
             if (this.io) {
                 this.io.emit('ready');
             }
-            console.log('WhatsApp client siap!');
         });
 
         this.client.on('message', messageHandler);
-        
+
         try {
             await this.client.initialize();
+            console.log('Client initialization started');
         } catch (error) {
             console.error('Error initializing WhatsApp client:', error);
+            throw error;
         }
-    }
-
-    getQR() {
-        return this.qr;
     }
 }
 
